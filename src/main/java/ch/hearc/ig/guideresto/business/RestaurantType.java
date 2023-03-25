@@ -16,7 +16,15 @@ public class RestaurantType {
         this.description = description;
         this.restaurants = new HashSet<>();
     }
-    
+
+    public Integer getId() {
+        return id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
     public String getLabel() {
         return label;
     }

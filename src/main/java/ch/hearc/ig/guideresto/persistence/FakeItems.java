@@ -22,8 +22,7 @@ public class FakeItems {
     private final Set<Restaurant> restaurants;
     private final Set<EvaluationCriteria> criterias;
     private final Set<City> cities;
-    //public static final ThreadLocal<Connection> connection; version compliqué
-    //Connection connection = DriverManager.getConnection()
+
     public FakeItems() {
         RestaurantType typeSuisse = new RestaurantType(1, "Cuisine suisse", "Cuisine classique et plats typiquement suisses");
         RestaurantType typeGastro = new RestaurantType(2, "Restaurant gastronomique", "Restaurant gastronomique de haut standing");

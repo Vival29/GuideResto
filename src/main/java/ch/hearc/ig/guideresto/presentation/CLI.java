@@ -11,10 +11,15 @@ import ch.hearc.ig.guideresto.business.EvaluationCriteria;
 import ch.hearc.ig.guideresto.business.Grade;
 import ch.hearc.ig.guideresto.business.Restaurant;
 import ch.hearc.ig.guideresto.business.RestaurantType;
-import ch.hearc.ig.guideresto.persistence.FakeItems;
+import ch.hearc.ig.guideresto.persistence.CityDAO;
+import ch.hearc.ig.guideresto.persistence.EvaluationCriteriaDAO;
+import ch.hearc.ig.guideresto.persistence.RestaurantDAO;
+import ch.hearc.ig.guideresto.persistence.RestaurantTypeDAO;
+
 import java.io.PrintStream;
 import java.net.Inet4Address;
 import java.net.UnknownHostException;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.InputMismatchException;
 import java.util.Optional;
@@ -25,16 +30,23 @@ public class CLI {
 
   private final Scanner scanner;
   private final PrintStream printStream;
-  private final FakeItems fakeItems;
-
+  //private final FakeItems fakeItems;
+  private final RestaurantDAO restoDAO;
+  private final CityDAO cityDAO;
+  private final RestaurantTypeDAO typeDAO;
+  private final EvaluationCriteriaDAO evalCritDAO;
   // Injection de dépendances
-  public CLI(Scanner scanner, PrintStream printStream, FakeItems fakeItems) {
+  public CLI(Scanner scanner, PrintStream printStream, RestaurantDAO restDAO, CityDAO cityDAO, RestaurantTypeDAO typeDAO, EvaluationCriteriaDAO evalCritDAO) {
     this.scanner = scanner;
     this.printStream = printStream;
-    this.fakeItems = fakeItems;
+    //this.fakeItems = fakeItems;
+    this.restoDAO = restDAO;
+    this.cityDAO = cityDAO;
+    this.typeDAO = typeDAO;
+    this.evalCritDAO = evalCritDAO;
   }
 
-  public void start() {
+  public void start() throws SQLException {
     println("Bienvenue dans GuideResto ! Que souhaitez-vous faire ?");
     int choice;
     do {
@@ -55,7 +67,7 @@ public class CLI {
     println("0. Quitter l'application");
   }
 
-  private void proceedMainMenu(int choice) {
+  private void proceedMainMenu(int choice) throws SQLException {
     switch (choice) {
       case 1:
         showRestaurantsList();
@@ -100,21 +112,21 @@ public class CLI {
     return searchRestaurantByName(restaurants, choice);
   }
 
-  private void showRestaurantsList() {
+  private void showRestaurantsList() throws SQLException {
     println("Liste des restaurants : ");
 
-    Set<Restaurant> restaurants = fakeItems.getAllRestaurants();
+    Set<Restaurant> restaurants = restoDAO.getAllRestaurants();
 
     Optional<Restaurant> maybeRestaurant = pickRestaurant(restaurants);
     // Si l'utilisateur a choisi un restaurant, on l'affiche, sinon on ne fait rien et l'application va réafficher le menu principal
     maybeRestaurant.ifPresent(this::showRestaurant);
   }
 
-  private void searchRestaurantByName() {
+  private void searchRestaurantByName() throws SQLException {
     println("Veuillez entrer une partie du nom recherché : ");
     String research = readString();
 
-    Set<Restaurant> restaurants = fakeItems.getAllRestaurants()
+    Set<Restaurant> restaurants = restoDAO.getAllRestaurants()
         .stream()
         .filter(r -> r.getName().equalsIgnoreCase(research))
         .collect(toUnmodifiableSet());
@@ -127,11 +139,11 @@ public class CLI {
    * Affiche une liste de restaurants dont le nom de la ville contient une chaîne de caractères
    * saisie par l'utilisateur
    */
-  private void searchRestaurantByCity() {
+  private void searchRestaurantByCity() throws SQLException {
     println("Veuillez entrer une partie du nom de la ville désirée : ");
     String research = readString();
 
-    Set<Restaurant> restaurants = fakeItems.getAllRestaurants()
+    Set<Restaurant> restaurants = restoDAO.getAllRestaurants()
         .stream()
         .filter(r -> r.getAddress().getCity().getCityName().toUpperCase().contains(research.toUpperCase()))
         .collect(toUnmodifiableSet());
@@ -140,7 +152,7 @@ public class CLI {
     maybeRestaurant.ifPresent(this::showRestaurant);
   }
 
-  private City pickCity(Set<City> cities) {
+  private City pickCity(Set<City> cities) throws SQLException {
     println(
         "Voici la liste des villes possibles, veuillez entrer le NPA de la ville désirée : ");
 
@@ -155,11 +167,17 @@ public class CLI {
       println("Veuillez entrer le nom de la nouvelle ville : ");
       String cityName = readString();
       City city = new City(1, zipCode, cityName);
-      fakeItems.getCities().add(city);
+      cityDAO.insertCity(city.getId(), city.getZipCode(), city.getCityName());
       return city;
     }
 
-    return searchCityByZipCode(cities, choice).orElseGet(() -> pickCity(cities));
+    return searchCityByZipCode(cities, choice).orElseGet(() -> {
+      try {
+        return pickCity(cities);
+      } catch (SQLException e) {
+        throw new RuntimeException(e);
+      }
+    });
   }
 
   private RestaurantType pickRestaurantType(Set<RestaurantType> types) {
@@ -177,11 +195,11 @@ public class CLI {
     return maybeRestaurantType.orElseGet(() -> pickRestaurantType(types));
   }
 
-  private void searchRestaurantByType() {
-    Set<RestaurantType> restaurantTypes = fakeItems.getRestaurantTypes();
+  private void searchRestaurantByType() throws SQLException {
+    Set<RestaurantType> restaurantTypes = typeDAO.getRestaurantTypes();
     RestaurantType chosenType = pickRestaurantType(restaurantTypes);
 
-    Set<Restaurant> restaurants = fakeItems.getAllRestaurants()
+    Set<Restaurant> restaurants = restoDAO.getAllRestaurants()
         .stream()
         .filter(r -> r.getType().getLabel().equalsIgnoreCase(chosenType.getLabel()))
         .collect(toUnmodifiableSet());
@@ -190,7 +208,7 @@ public class CLI {
     maybeRestaurant.ifPresent(this::showRestaurant);
   }
 
-  private void addNewRestaurant() {
+  private void addNewRestaurant() throws SQLException {
     println("Vous allez ajouter un nouveau restaurant !");
     println("Quel est son nom ?");
     String name = readString();
@@ -203,21 +221,21 @@ public class CLI {
     City city;
     do
     { // La sélection d'une ville est obligatoire, donc l'opération se répètera tant qu'aucune ville n'est sélectionnée.
-      Set<City> cities = fakeItems.getCities();
+      Set<City> cities = cityDAO.getCities();
       city = pickCity(cities);
     } while (city == null);
 
     RestaurantType restaurantType;
 
     // La sélection d'un type est obligatoire, donc l'opération se répètera tant qu'aucun type n'est sélectionné.
-    Set<RestaurantType> restaurantTypes = fakeItems.getRestaurantTypes();
+    Set<RestaurantType> restaurantTypes = typeDAO.getRestaurantTypes();
     restaurantType = pickRestaurantType(restaurantTypes);
 
     Restaurant restaurant = new Restaurant(null, name, description, website, street, city,
         restaurantType);
     city.getRestaurants().add(restaurant);
     restaurant.getAddress().setCity(city);
-    fakeItems.getAllRestaurants().add(restaurant);
+    restoDAO.getAllRestaurants().add(restaurant);
 
     showRestaurant(restaurant);
   }
@@ -282,7 +300,7 @@ public class CLI {
     println("0. Revenir au menu principal");
   }
 
-  private void proceedRestaurantMenu(int choice, Restaurant restaurant) {
+  private void proceedRestaurantMenu(int choice, Restaurant restaurant) throws SQLException {
     switch (choice) {
       case 1:
         addBasicEvaluation(restaurant, true);
@@ -335,7 +353,7 @@ public class CLI {
 
     println("Veuillez svp donner une note entre 1 et 5 pour chacun de ces critères : ");
 
-    Set<EvaluationCriteria> evaluationCriterias = fakeItems.getEvaluationCriterias();
+    Set<EvaluationCriteria> evaluationCriterias = evalCritDAO.getEvaluationCriterias();
 
     evaluationCriterias.forEach(currentCriteria -> {
       println(currentCriteria.getName() + " : " + currentCriteria.getDescription());
@@ -347,7 +365,7 @@ public class CLI {
     println("Votre évaluation a bien été enregistrée, merci !");
   }
 
-  private void editRestaurant(Restaurant restaurant) {
+  private void editRestaurant(Restaurant restaurant) throws SQLException {
     println("Edition d'un restaurant !");
 
     println("Nouveau nom : ");
@@ -358,7 +376,7 @@ public class CLI {
     restaurant.setWebsite(readString());
     println("Nouveau type de restaurant : ");
 
-    Set<RestaurantType> restaurantTypes = fakeItems.getRestaurantTypes();
+    Set<RestaurantType> restaurantTypes = typeDAO.getRestaurantTypes();
 
     RestaurantType newType = pickRestaurantType(restaurantTypes);
     if (newType != restaurant.getType()) {
@@ -366,17 +384,18 @@ public class CLI {
       newType.getRestaurants().add(restaurant);
       restaurant.setType(newType);
     }
-
+    //City city = new City(restaurant.getZipCode(), restaurant.getCityName());
+    restoDAO.updateRestaurant(restaurant.getId(), restaurant.getName(), restaurant.getDescription(), restaurant.getWebsite(), restaurant.getStreet(), );
     println("Merci, le restaurant a bien été modifié !");
   }
 
-  private void editRestaurantAddress(Restaurant restaurant) {
+  private void editRestaurantAddress(Restaurant restaurant) throws SQLException {
     println("Edition de l'adresse d'un restaurant !");
 
     println("Nouvelle rue : ");
     restaurant.getAddress().setStreet(readString());
 
-    Set<City> cities = fakeItems.getCities();
+    Set<City> cities = cityDAO.getCities();
 
     City newCity = pickCity(cities);
     if (newCity.equals(restaurant.getAddress().getCity())) {
@@ -388,13 +407,13 @@ public class CLI {
     println("L'adresse a bien été modifiée ! Merci !");
   }
 
-  private void deleteRestaurant(Restaurant restaurant) {
+  private void deleteRestaurant(Restaurant restaurant) throws SQLException {
     println("Etes-vous sûr de vouloir supprimer ce restaurant ? (O/n)");
     String choice = readString();
     if ("o".equalsIgnoreCase(choice)) {
       restaurant.getAddress().getCity().getRestaurants().remove(restaurant);
       restaurant.getType().getRestaurants().remove(restaurant);
-      fakeItems.getAllRestaurants().remove(restaurant);
+      restoDAO.getAllRestaurants().remove(restaurant);
       println("Le restaurant a bien été supprimé !");
     }
   }
