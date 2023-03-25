@@ -6,7 +6,7 @@ import java.sql.*;
 import java.util.HashSet;
 import java.util.Set;
 
-public class CityMapper {
+public class CityDAO {
    private String DBURL = "jdbc:oracle:thin@db.ig.he-arc.ch";
    private String DBUSER = "virginie_valentin1";
    private String DBPWD = "virginie_valentin1";

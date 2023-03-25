@@ -1,6 +1,6 @@
 package ch.hearc.ig.guideresto.persistence;
 
-public class CompleteEvaluationMapper extends EvaluationMapper {
+public class CompleteEvaluationDAO extends EvaluationDAO {
     private String comment;
     private String username;
 }

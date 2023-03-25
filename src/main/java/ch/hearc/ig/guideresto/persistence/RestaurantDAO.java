@@ -1,13 +1,8 @@
 package ch.hearc.ig.guideresto.persistence;
 
-import ch.hearc.ig.guideresto.business.City;
-import ch.hearc.ig.guideresto.business.Restaurant;
-
 import java.sql.*;
-import java.util.HashSet;
-import java.util.Set;
 
-public class RestaurantMapper {
+public class RestaurantDAO {
     private Integer id;
     private String DBURL = "jdbc:oracle:thin@db.ig.he-arc.ch";
     private String DBUSER = "virginie_valentin1";
@@ -24,7 +19,7 @@ public class RestaurantMapper {
     }
 
 
-    public Set<Restaurant> getAllRestaurants() throws SQLException {
+    /*public Set<Restaurant> getAllRestaurants() throws SQLException {
         Set<Restaurant> restaurants = new HashSet<>();
         openConnection();
         PreparedStatement pSt = cnn.prepareStatement("SELECT r.numero, r.nom, r.adresse, r.description, r.site_web, t.libelle, v.nom_ville FROM RESTAURANTS r INNER JOIN VILLES");
@@ -39,5 +34,5 @@ public class RestaurantMapper {
         pSt.close();
 
         return restaurants;
-    }
+    }*/
 }

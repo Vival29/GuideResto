@@ -1,8 +1,7 @@
 package ch.hearc.ig.guideresto.persistence;
 
-public class EvalutationCriteriaMapper {
+public class RestaurantTypeDAO {
     private Integer id;
-    private String name;
+    private String label;
     private String description;
-
 }

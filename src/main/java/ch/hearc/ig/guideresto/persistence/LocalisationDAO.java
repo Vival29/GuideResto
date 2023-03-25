@@ -1,5 +1,5 @@
 package ch.hearc.ig.guideresto.persistence;
 
-public class LocalisationMapper {
+public class LocalisationDAO {
     private String street;
 }
